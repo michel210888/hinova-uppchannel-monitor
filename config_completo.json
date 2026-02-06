@@ -1,0 +1,80 @@
+{
+  "hinova": {
+    "token": "SEU_TOKEN_HINOVA_AQUI",
+    "usuario": "seu_usuario",
+    "senha": "sua_senha"
+  },
+  "uppchannel": {
+    "api_key": "SUA_API_KEY_UPPCHANNEL_AQUI"
+  },
+  "situacoes_ativas": [
+    6,
+    15,
+    11,
+    23,
+    38,
+    80,
+    82,
+    30,
+    40,
+    5,
+    10,
+    3,
+    45,
+    77,
+    76,
+    33,
+    8,
+    29,
+    70,
+    71,
+    72,
+    79,
+    32,
+    59,
+    4,
+    20,
+    61
+  ],
+  "templates_mensagem": {
+    "6": "Olá {nome_associado}! 📢\n\n*1.0 - COMUNICADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "15": "Olá {nome_associado}! 🔍\n\n*2.1 - ANÁLISE*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "11": "Olá {nome_associado}! 🔓\n\n*3.0 - AUTORIZADO EM ORÇAMENTO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nProsseguiremos com os próximos passos. 👍",
+    "23": "Olá {nome_associado}! 💰\n\n*3.1 - COTA DE PARTICIPAçãO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "38": "Olá {nome_associado}! 💰\n\n*3.2 - ACORDO EM ANDAMENTO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "80": "Olá {nome_associado}! 🚗\n\n*3.3 - CARRO RESERVA*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "82": "Olá {nome_associado}! ✅\n\n*3.8 - CARRO RESERVA FINALIZADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "30": "Olá {nome_associado}! ✅\n\n*3.9 - ACORDO FINALIZADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "40": "Olá {nome_associado}! 📋\n\n*4.0 - COMPRA DE PEÇAS*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "5": "Olá {nome_associado}! 🔓\n\n*4.2 - REPAROS LIBERADOS*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nProsseguiremos com os próximos passos. 👍",
+    "10": "Olá {nome_associado}! ✅\n\n*4.7 - VEíCULO ENTREGUE*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "3": "Olá {nome_associado}! ✅\n\n*4.9 - FINALIZADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "45": "Olá {nome_associado}! 🛡️\n\n*5.2 - GARANTIA AUTORIZADA*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "77": "Olá {nome_associado}! ✅\n\n*5.7 - GARANTIA ENTREGUE*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "76": "Olá {nome_associado}! 🛡️\n\n*5.9 - GARANTIA FINALIZADA*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "33": "Olá {nome_associado}! 📋\n\n*6.0 - INDENIZAçãO AGENDADA*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "8": "Olá {nome_associado}! ✅\n\n*6.8 - ROUBO/FURTO FINALIZADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "29": "Olá {nome_associado}! 📢\n\n*9.0 - OPCIONAL ABERTO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "70": "Olá {nome_associado}! 💰\n\n*9.1 - OPCIONAL COTAÇÃO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "71": "Olá {nome_associado}! 💰\n\n*9.2 - OPIC. COTA PARTICIPAÇÃO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "72": "Olá {nome_associado}! 🔓\n\n*9.3 - OPCIONAL LIBERADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nProsseguiremos com os próximos passos. 👍",
+    "79": "Olá {nome_associado}! ✅\n\n*9.4 - OPCIONAL ENTREGUE*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "32": "Olá {nome_associado}! ✅\n\n*9.9 - OPCIONAL FINALIZADO*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "59": "Olá {nome_associado}! ✅\n\n*9.9 - OPCIONAL FINALIZADO 1*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "4": "Olá {nome_associado}! 📋\n\n*COBRANçA FIDELIDADE*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞",
+    "20": "Olá {nome_associado}! ✅\n\n*FINALIZADO REPAROS PELO TERCEI*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nObrigado por utilizar nossos serviços! ✨",
+    "61": "Olá {nome_associado}! 🚗\n\n*VEÍCULO RESERVA*\n\nProtocolo: {protocolo}\nVeículo: {placa}\nData: {data_evento}\n\nEm breve entraremos em contato! 📞"
+  },
+  "configuracao": {
+    "intervalo_verificacao_minutos": 15,
+    "horario_inicio": "08:00",
+    "horario_fim": "18:00",
+    "dias_semana": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  }
+}
