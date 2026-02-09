@@ -1,243 +1,365 @@
-# 🚗 Monitor Hinova → UppChannel
+# 🚀 Sistema Hinova → UppChannel - Versão Completa
 
-Sistema automatizado de monitoramento de eventos da API Hinova SGA com envio de mensagens WhatsApp via UppChannel.
+## ✨ Novidades desta Versão
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com)
+### 🔄 Auto-Refresh de Token
+- ✅ Token da Hinova renovado automaticamente
+- ✅ Cache de token com validade de 1 hora
+- ✅ Reautenticação transparente quando expirar
+- ✅ **Solução para o problema do token que expira!**
 
-## 📋 Sobre o Projeto
+### 📊 Dashboard Completo em Tempo Real
+- ✅ Interface web moderna e profissional
+- ✅ Logs em tempo real (atualiza a cada 5 segundos)
+- ✅ 4 abas: Dashboard, Logs, Mensagens, Configurações
+- ✅ Visualização de status e progresso
 
-Este sistema monitora automaticamente eventos cadastrados no sistema Hinova SGA e envia notificações via WhatsApp para os clientes utilizando a API do UppChannel. Ideal para:
+### 💾 Banco de Dados SQLite
+- ✅ Histórico completo de mensagens enviadas
+- ✅ Logs do sistema persistidos
+- ✅ Configurações salvas no banco
+- ✅ **Nunca perde dados, mesmo após reiniciar!**
 
-- ✅ Notificar clientes sobre status de eventos
-- 📱 Enviar atualizações automáticas por WhatsApp
-- ⚙️ Personalizar mensagens por situação
-- 📊 Monitorar estatísticas em tempo real
+### ⚙️ Painel de Configuração
+- ✅ Editar credenciais pela interface web
+- ✅ Alterar situações ativas
+- ✅ Modificar intervalo de verificação
+- ✅ Tudo sem editar código!
 
-## 🚀 Deploy Rápido no Render (Gratuito)
+### 📝 Sistema de Logs Avançado
+- ✅ Logs coloridos por nível (INFO, SUCCESS, WARNING, ERROR)
+- ✅ Timestamps precisos
+- ✅ Histórico completo no banco
+- ✅ **Fácil de debugar problemas!**
 
-### Passo 1: Fork este Repositório
-
-1. Clique em **Fork** no canto superior direito desta página
-2. Aguarde o fork ser criado na sua conta
-
-### Passo 2: Criar Conta no Render
-
-1. Acesse [render.com](https://render.com)
-2. Crie uma conta gratuita (pode usar GitHub)
-
-### Passo 3: Deploy Automático
-
-1. No Render, clique em **New +** → **Web Service**
-2. Conecte seu repositório GitHub
-3. Configure:
-   - **Name**: `hinova-monitor` (ou nome de sua preferência)
-   - **Environment**: `Docker`
-   - **Plan**: `Free`
-
-### Passo 4: Configurar Variáveis de Ambiente
-
-Na aba **Environment**, adicione:
+## 📦 Arquivos Incluídos
 
 ```
-HINOVA_TOKEN=seu_token_aqui
-HINOVA_USUARIO=seu_usuario
-HINOVA_SENHA=sua_senha
-UPPCHANNEL_API_KEY=sua_chave_api
-SITUACOES_ATIVAS=1,9
-INTERVALO_MINUTOS=15
+sistema-completo/
+├── app.py                 # Aplicação Flask completa
+├── dashboard.html         # Interface web (será servida pelo app.py)
+├── requirements.txt       # Dependências Python
+├── Dockerfile            # Container Docker
+├── render.yaml          # Configuração Render
+├── .gitignore           # Arquivos a ignorar
+├── .env.example         # Exemplo de variáveis
+└── README_COMPLETO.md   # Este arquivo
 ```
 
-### Passo 5: Deploy!
+## 🚀 Novos Recursos
 
-Clique em **Create Web Service** e aguarde o deploy (2-3 minutos).
+### 1. Auto-Refresh de Token ✅
 
-## 🔐 Obtendo as Credenciais
+O sistema agora gerencia automaticamente o token da Hinova:
 
-### Token Hinova SGA
+```python
+# Token é armazenado em cache
+token_cache = {
+    'bearer_token': None,
+    'user_token': None,
+    'expires_at': None  # Expira em 1 hora
+}
 
-1. Acesse o sistema SGA
-2. Vá em **Área Cliente** → **APIs** → **Gerenciar APIs**
-3. Clique em **Novo**
-4. Selecione o Interveniente
-5. Defina um apelido
-6. Marque **Permitir Acesso** como **SIM**
-7. Libere os endpoints necessários
-8. Copie o token gerado
-
-### API Key UppChannel
-
-1. Acesse [uppchannel.readme.io](https://uppchannel.readme.io/)
-2. Faça login na sua conta
-3. Navegue até a seção de API
-4. Copie sua API Key
-
-## ⚙️ Configurações
-
-### Situações Disponíveis
-
-Configure quais situações devem enviar mensagens através da variável `SITUACOES_ATIVAS`:
-
-| Código | Situação | Descrição |
-|--------|----------|-----------|
-| 1 | ABERTO | Evento recém criado |
-| 2 | EM ANÁLISE | Equipe avaliando |
-| 3 | EM ANDAMENTO | Reparos em execução |
-| 9 | FINALIZADO | Evento concluído |
-
-**Exemplo**: `SITUACOES_ATIVAS=1,9` (notifica apenas eventos abertos e finalizados)
-
-### Templates de Mensagens
-
-Você pode personalizar as mensagens definindo variáveis de ambiente:
-
-```
-TEMPLATE_1="Olá {nome_associado}! Seu evento está ABERTO"
-TEMPLATE_2="Evento {protocolo} em ANÁLISE"
-TEMPLATE_3="Evento {protocolo} EM ANDAMENTO"
-TEMPLATE_9="✅ Evento {protocolo} FINALIZADO!"
+# Se expirar, reautentica automaticamente
+if datetime.now() >= token_cache['expires_at']:
+    autenticar(force=True)
 ```
 
-#### Variáveis Disponíveis
+**Benefício:** Você não precisa mais se preocupar com o token expirando!
 
-Use estas variáveis nos templates:
+### 2. Dashboard Web Completo
 
-- `{nome_associado}` - Nome do cliente
-- `{protocolo}` - Número do protocolo
-- `{placa}` - Placa do veículo
-- `{situacao}` - Situação atual
-- `{motivo}` - Motivo do evento
-- `{data_evento}` - Data do evento
+Acesse `https://seu-app.onrender.com` para ver:
 
-## 📊 Monitoramento
+#### 📊 **Aba Dashboard**
+- Estatísticas em tempo real
+- Status do sistema (rodando/ocioso)
+- Logs em tempo real
+- Botão "Executar Agora"
 
-Após o deploy, acesse a URL fornecida pelo Render para visualizar:
+#### 📋 **Aba Logs do Sistema**
+- Todos os logs do sistema
+- Filtrados por nível
+- Com timestamps
+- Histórico completo
 
-- ✅ Status do sistema
-- 📈 Estatísticas de envios
-- ⏱️ Última execução
-- ❌ Erros (se houver)
+#### 💬 **Aba Histórico de Mensagens**
+- Todas as mensagens enviadas
+- Status (Enviado/Falhou)
+- Dados do cliente
+- Visualizar mensagem completa
 
-### Endpoints Disponíveis
+#### ⚙️ **Aba Configurações**
+- Editar credenciais
+- Alterar situações ativas
+- Modificar intervalo
+- Salvar no banco de dados
 
-- `/` - Dashboard principal
-- `/health` - Health check
-- `/stats` - Estatísticas em JSON
-- `/run-now` - Executar processamento manualmente
+### 3. Banco de Dados SQLite
 
-## 🔧 Configurações Avançadas
+O sistema agora salva tudo em `/tmp/hinova_messages.db`:
 
-### Alterar Intervalo de Verificação
+**Tabelas:**
+- `messages` - Histórico de mensagens
+- `system_logs` - Logs do sistema
+- `config` - Configurações
 
-Por padrão, o sistema verifica eventos a cada 15 minutos. Para alterar:
+**Campos da tabela messages:**
+```sql
+- id (auto-increment)
+- timestamp
+- protocolo
+- evento_id
+- situacao_codigo
+- situacao_nome
+- telefone
+- mensagem
+- status (ENVIADO/FALHOU)
+- erro
+- nome_associado
+- placa
+```
+
+### 4. Logs em Tempo Real
+
+Os logs aparecem instantaneamente na interface:
 
 ```
-INTERVALO_MINUTOS=30
+10:30:15 [INFO] 🚀 INICIANDO PROCESSAMENTO DE EVENTOS
+10:30:16 [SUCCESS] ✓ Autenticação bem-sucedida
+10:30:17 [INFO] 📋 Buscando eventos de 2026-02-06...
+10:30:18 [INFO] ✓ 5 eventos encontrados
+10:30:19 [SUCCESS] ✓ Mensagem enviada para 31999998888
+10:30:25 [SUCCESS] ✓ Processamento concluído: 3 mensagens
 ```
 
-### Horário Comercial (Opcional)
+## 📊 Endpoints da API
 
-Para executar apenas em horário comercial, adicione:
+### GET `/`
+Dashboard principal (interface HTML)
 
+### GET `/health`
+Health check para o Render
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-02-06T10:30:00"
+}
 ```
-HORARIO_INICIO=08:00
-HORARIO_FIM=18:00
-DIAS_SEMANA=1,2,3,4,5
+
+### GET `/api/status`
+Status completo do sistema
+```json
+{
+  "last_run": "2026-02-06T10:30:00",
+  "last_status": "✓ 3 mensagens enviadas",
+  "is_running": false,
+  "current_step": "",
+  "stats": {
+    "total_runs": 10,
+    "successful_messages": 27,
+    "failed_messages": 2
+  },
+  "logs": [...],
+  "processed_events_count": 15
+}
 ```
 
-## 🐛 Resolução de Problemas
+### GET `/api/logs`
+Todos os logs do sistema (últimos 100)
 
-### Erro de Autenticação
+### GET `/api/messages`
+Histórico de mensagens enviadas
 
-❌ **Problema**: "Erro na autenticação Hinova"
+### GET `/api/run-now`
+Executa processamento manual
 
-✅ **Solução**:
-- Verifique se o token está correto
-- Confirme usuário e senha
-- Certifique-se que os endpoints estão liberados no SGA
+### GET|POST `/api/config`
+- GET: Retorna configuração atual
+- POST: Salva nova configuração
 
-### Mensagens Não Enviadas
+## 🔧 Instalação Local
 
-❌ **Problema**: "Erro ao enviar mensagem"
+### Requisitos
+- Python 3.7+
+- pip
 
-✅ **Solução**:
-- Verifique a API Key do UppChannel
-- Confirme formato do telefone
-- Verifique créditos na conta UppChannel
+### Passos
 
-### Eventos Não Encontrados
-
-❌ **Problema**: "Nenhum evento encontrado"
-
-✅ **Solução**:
-- Confirme que existem eventos na data atual
-- Verifique permissões do usuário no SGA
-
-## 📝 Logs
-
-Os logs são exibidos no dashboard do Render em tempo real:
-
-1. Acesse seu serviço no Render
-2. Clique na aba **Logs**
-3. Visualize todas as operações
-
-## 💰 Custos
-
-Este projeto utiliza:
-
-- **Render Free Tier**: Gratuito com limitações
-  - 750 horas/mês de execução
-  - Hiberna após 15 minutos sem uso
-  - Reinicia automaticamente quando acessado
-
-Para uso ininterrupto, considere o plano **Starter** ($7/mês).
-
-## 🛠️ Desenvolvimento Local
-
-### Instalação
-
+1. **Extrair arquivos**
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/hinova-uppchannel.git
-cd hinova-uppchannel
+unzip sistema-completo.zip
+cd sistema-completo
+```
 
-# Instale dependências
+2. **Instalar dependências**
+```bash
 pip install -r requirements.txt
+```
 
-# Configure variáveis de ambiente
+3. **Configurar variáveis de ambiente**
+```bash
 cp .env.example .env
-# Edite o arquivo .env com suas credenciais
+# Edite o .env com suas credenciais
+```
 
-# Execute
+4. **Executar**
+```bash
 python app.py
 ```
 
-Acesse: `http://localhost:10000`
+5. **Acessar**
+```
+http://localhost:10000
+```
 
-## 📚 Documentação das APIs
+## 🚀 Deploy no Render
 
-- [Hinova SGA API](https://api.hinova.com.br/api/sga/v2/doc/)
-- [UppChannel API](https://uppchannel.readme.io/)
+### Opção 1: Via GitHub (Recomendado)
 
-## 🤝 Contribuindo
+1. Faça upload dos arquivos para o GitHub
+2. No Render: New → Web Service
+3. Conecte o repositório
+4. Configure:
+   - Environment: Docker
+   - Plan: Free
 
-Contribuições são bem-vindas! Sinta-se à vontade para:
+5. Adicione as variáveis de ambiente:
+```
+HINOVA_TOKEN=seu_token
+HINOVA_USUARIO=seu_usuario
+HINOVA_SENHA=sua_senha
+UPPCHANNEL_API_KEY=sua_api_key
+SITUACOES_ATIVAS=6,15,11,23,38,80,82,30,40,5,10,3,45,77,76,33,8,29,70,71,72,79,32,59,4,20,61
+INTERVALO_MINUTOS=15
+```
 
-1. Fazer fork do projeto
-2. Criar uma branch (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abrir um Pull Request
+6. Deploy!
 
-## 📄 Licença
+### Opção 2: Deploy Direto
 
-Este projeto é de código aberto e está disponível sob a licença MIT.
+Render também aceita deploy direto do ZIP.
 
-## 📧 Suporte
+## 💡 Como Usar
 
-Encontrou algum problema? Abra uma [issue](https://github.com/seu-usuario/hinova-uppchannel/issues) no GitHub.
+### 1. Acesse a Dashboard
+
+Abra a URL fornecida pelo Render (ex: `https://hinova-monitor.onrender.com`)
+
+### 2. Monitore em Tempo Real
+
+- Dashboard atualiza automaticamente a cada 5 segundos
+- Veja logs acontecendo em tempo real
+- Acompanhe estatísticas
+
+### 3. Execute Manualmente
+
+Clique em "▶️ Executar Agora" para processar eventos imediatamente
+
+### 4. Visualize Mensagens
+
+- Vá na aba "Histórico de Mensagens"
+- Veja todas as mensagens enviadas
+- Clique em "Ver" para ver a mensagem completa
+
+### 5. Configure pelo Painel
+
+- Vá na aba "Configurações"
+- Edite credenciais
+- Altere situações ativas
+- Salve
+
+## 🔍 Solução de Problemas
+
+### Problema: Token expira durante execução
+
+**Solução:** ✅ Já resolvido! O sistema renova automaticamente.
+
+### Problema: Não vejo os logs
+
+**Solução:** 
+1. Aguarde 5 segundos (atualização automática)
+2. Ou clique em "🔄 Atualizar"
+
+### Problema: Mensagens não aparecem no histórico
+
+**Solução:**
+1. Vá na aba "Histórico de Mensagens"
+2. Clique em "🔄 Atualizar"
+3. Verifique se o processamento foi executado
+
+### Problema: Configuração não salva
+
+**Solução:**
+1. Certifique-se de clicar em "💾 Salvar Configuração"
+2. Aguarde a confirmação
+3. **Importante:** Reinicie o serviço no Render para aplicar
+
+### Problema: Banco de dados vazio após reiniciar
+
+**Solução:**
+⚠️ No plano free do Render, o `/tmp` é limpo em reinicializações.
+Para persistência permanente, considere o plano pago ou use um banco externo.
+
+## 📊 Estatísticas e Monitoramento
+
+### Métricas Disponíveis
+
+- **Total de Execuções**: Quantas vezes o sistema rodou
+- **Mensagens Enviadas**: Total de sucesso
+- **Falhas**: Mensagens que falharam
+- **Eventos Processados**: Total único de eventos
+
+### Logs por Nível
+
+- **INFO**: Informações gerais
+- **SUCCESS**: Operações bem-sucedidas
+- **WARNING**: Avisos (não bloqueiam o sistema)
+- **ERROR**: Erros que precisam atenção
+
+## 🎯 Melhores Práticas
+
+### ✅ Recomendado
+
+1. Monitore a dashboard pelo menos 1x por dia
+2. Verifique logs se houver falhas
+3. Ajuste o intervalo conforme necessidade
+4. Mantenha backup das credenciais
+
+### ❌ Evitar
+
+1. Intervalo menor que 5 minutos (pode sobrecarregar APIs)
+2. Desativar situações importantes (3, 10, etc)
+3. Alterar configuração durante processamento
+4. Executar manualmente com muita frequência
+
+## 🆕 Diferenças da Versão Anterior
+
+| Recurso | Versão Antiga | Versão Nova |
+|---------|---------------|-------------|
+| Refresh de Token | ❌ Manual | ✅ Automático |
+| Interface Web | ❌ Básica | ✅ Completa |
+| Banco de Dados | ❌ Nenhum | ✅ SQLite |
+| Histórico | ❌ Memória | ✅ Persistido |
+| Configuração | ❌ Variáveis | ✅ Interface |
+| Logs | ❌ Console | ✅ Tempo Real |
+
+## 📚 Documentação Adicional
+
+- **API Hinova**: https://api.hinova.com.br/api/sga/v2/doc/
+- **API UppChannel**: https://uppchannel.readme.io/
+
+## 🆘 Suporte
+
+Se tiver problemas:
+
+1. Verifique os logs na aba "Logs do Sistema"
+2. Consulte a aba "Histórico de Mensagens"
+3. Teste as credenciais manualmente
+4. Verifique se há créditos no UppChannel
 
 ---
 
-⭐ Se este projeto foi útil para você, considere dar uma estrela!
+✅ **Sistema completo pronto para produção!**
 
-**Desenvolvido com ❤️ para automatizar comunicação com clientes**
+Com auto-refresh de token, banco de dados e interface moderna! 🚀
