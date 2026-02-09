@@ -285,11 +285,12 @@ class HinovaAPI:
         # Verificar se token ainda é válido
         if not force and token_cache['user_token'] and token_cache['expires_at']:
             if datetime.now() < token_cache['expires_at']:
-                add_log('INFO', '✓ Token em cache ainda válido')
+                add_log('INFO', f'✓ Token em cache ainda válido (expira às {token_cache["expires_at"].strftime("%H:%M:%S")})')
                 return True
         
         try:
             add_log('INFO', '🔑 Autenticando na API Hinova...')
+            add_log('INFO', f'   Bearer Token: {self.token[:30]}...')
             
             url = f"{self.base_url}/usuario/autenticar"
             headers = {"Authorization": f"Bearer {self.token}"}
@@ -298,26 +299,42 @@ class HinovaAPI:
                 "senha": self.senha
             }
             
+            add_log('INFO', f'   Usuário: {self.usuario}')
+            add_log('INFO', f'   URL: {url}')
+            
             response = requests.post(url, json=payload, headers=headers, timeout=30)
-            response.raise_for_status()
+            
+            add_log('INFO', f'   Status HTTP: {response.status_code}')
+            
+            if response.status_code != 200:
+                add_log('ERROR', f'❌ Erro HTTP {response.status_code}: {response.text[:200]}')
+                return False
             
             data = response.json()
+            add_log('INFO', f'   Resposta JSON keys: {list(data.keys())}')
+            
             user_token = data.get('token')
             
-            if user_token:
-                # Atualizar cache (token válido por 1 hora)
-                token_cache['bearer_token'] = self.token
-                token_cache['user_token'] = user_token
-                token_cache['expires_at'] = datetime.now() + timedelta(hours=1)
-                
-                add_log('SUCCESS', f'✓ Autenticação bem-sucedida (token: {user_token[:20]}...)')
-                return True
-            else:
-                add_log('ERROR', '❌ Resposta sem token de usuário')
+            if not user_token:
+                add_log('ERROR', '❌ Resposta não contém campo "token"')
+                add_log('ERROR', f'   Resposta completa: {str(data)[:300]}')
                 return False
+            
+            # Atualizar cache (token válido por 1 hora)
+            token_cache['bearer_token'] = self.token
+            token_cache['user_token'] = user_token
+            token_cache['expires_at'] = datetime.now() + timedelta(hours=1)
+            
+            add_log('SUCCESS', f'✓ Autenticação bem-sucedida!')
+            add_log('INFO', f'   User Token: {user_token[:30]}...')
+            add_log('INFO', f'   Válido até: {token_cache["expires_at"].strftime("%H:%M:%S")}')
+            return True
             
         except requests.exceptions.Timeout:
             add_log('ERROR', '❌ Timeout na autenticação (>30s)')
+            return False
+        except requests.exceptions.RequestException as e:
+            add_log('ERROR', f'❌ Erro de conexão: {str(e)}')
             return False
         except Exception as e:
             add_log('ERROR', f'❌ Erro na autenticação: {str(e)}')
@@ -529,23 +546,32 @@ def processar_eventos():
         
         uppchannel = UppChannelAPI(config['uppchannel']['api_key'])
         
-        # Autenticar
+        # Autenticar UMA VEZ no início
         system_state['current_step'] = 'Autenticando...'
         if not hinova.autenticar():
             system_state['last_status'] = "❌ Erro na autenticação"
+            add_log('ERROR', '❌ Falha na autenticação - verifique credenciais')
             return
         
-        # Buscar eventos
+        # Verificar se token foi obtido
+        if not token_cache['user_token']:
+            system_state['last_status'] = "❌ Erro: Token de usuário não obtido"
+            add_log('ERROR', '❌ Token de usuário não foi retornado pela API')
+            return
+        
+        add_log('SUCCESS', f'✓ Token de usuário válido até {token_cache["expires_at"].strftime("%H:%M:%S")}')
+        
+        # Buscar eventos (usa o token em cache)
         system_state['current_step'] = 'Buscando eventos...'
         hoje = datetime.now().strftime('%Y-%m-%d')
         eventos = hinova.listar_eventos(hoje, hoje)
         
         if not eventos:
             system_state['last_status'] = f"✓ Nenhum evento para {hoje}"
-            add_log('INFO', '✓ Nenhum evento para processar')
+            add_log('INFO', '✓ Nenhum evento para processar hoje')
             return
         
-        # Processar eventos
+        # Processar eventos (todos com o MESMO token)
         system_state['current_step'] = f'Processando {len(eventos)} eventos...'
         eventos_processados = 0
         
@@ -572,7 +598,7 @@ def processar_eventos():
                 
                 add_log('INFO', f'📝 Processando evento {protocolo} (situação: {situacao_nome})')
                 
-                # Buscar veículo
+                # Buscar veículo (usa o MESMO token em cache)
                 veiculo_id = evento.get('veiculo', {}).get('codigo')
                 if not veiculo_id:
                     add_log('WARNING', f'⚠️ Evento {protocolo} sem veículo')
@@ -841,7 +867,7 @@ def api_config():
 
 @app.route('/api/test-connections')
 def test_connections():
-    """Testa conectividade com as APIs"""
+    """Testa conectividade com as APIs SEM interferir no token em uso"""
     results = {
         'hinova': {'status': 'pending', 'message': '', 'details': {}},
         'uppchannel': {'status': 'pending', 'message': '', 'details': {}}
@@ -849,27 +875,30 @@ def test_connections():
     
     config = carregar_configuracao()
     
-    # Testar Hinova
+    # Testar Hinova SEM fazer nova autenticação se já houver token válido
     try:
         add_log('INFO', '🔍 Testando conexão Hinova...')
-        hinova = HinovaAPI(
-            config['hinova']['token'],
-            config['hinova']['usuario'],
-            config['hinova']['senha']
-        )
         
-        if hinova.autenticar(force=True):
-            results['hinova']['status'] = 'success'
-            results['hinova']['message'] = 'Conexão bem-sucedida'
-            results['hinova']['details'] = {
-                'token_cached': token_cache['user_token'][:20] + '...',
-                'expires_at': token_cache['expires_at'].isoformat() if token_cache['expires_at'] else None
-            }
-            add_log('SUCCESS', '✓ Teste Hinova: OK')
+        # Verificar se já tem token válido em cache
+        if token_cache['user_token'] and token_cache['expires_at']:
+            if datetime.now() < token_cache['expires_at']:
+                results['hinova']['status'] = 'success'
+                results['hinova']['message'] = 'Token em cache válido'
+                results['hinova']['details'] = {
+                    'token_cached': token_cache['user_token'][:20] + '...',
+                    'expires_at': token_cache['expires_at'].isoformat()
+                }
+                add_log('SUCCESS', '✓ Teste Hinova: Token em cache OK')
+            else:
+                results['hinova']['status'] = 'warning'
+                results['hinova']['message'] = 'Token em cache expirado (será renovado no próximo processamento)'
+                add_log('WARNING', '⚠️ Token em cache expirado')
         else:
-            results['hinova']['status'] = 'error'
-            results['hinova']['message'] = 'Falha na autenticação'
-            add_log('ERROR', '❌ Teste Hinova: FALHOU')
+            # Só autentica se não houver token (para não invalidar o token em uso!)
+            results['hinova']['status'] = 'info'
+            results['hinova']['message'] = 'Nenhum token em cache (aguardando primeiro processamento)'
+            add_log('INFO', 'ℹ️ Nenhum token em cache ainda')
+            
     except Exception as e:
         results['hinova']['status'] = 'error'
         results['hinova']['message'] = str(e)
@@ -877,13 +906,18 @@ def test_connections():
     
     # Testar UppChannel (teste básico)
     try:
-        add_log('INFO', '🔍 Testando conexão UppChannel...')
-        results['uppchannel']['status'] = 'success'
-        results['uppchannel']['message'] = 'API Key configurada'
-        results['uppchannel']['details'] = {
-            'api_key': config['uppchannel']['api_key'][:20] + '...' if config['uppchannel']['api_key'] else 'Não configurado'
-        }
-        add_log('SUCCESS', '✓ Teste UppChannel: OK')
+        add_log('INFO', '🔍 Testando configuração UppChannel...')
+        if config['uppchannel']['api_key']:
+            results['uppchannel']['status'] = 'success'
+            results['uppchannel']['message'] = 'API Key configurada'
+            results['uppchannel']['details'] = {
+                'api_key': config['uppchannel']['api_key'][:20] + '...'
+            }
+            add_log('SUCCESS', '✓ Teste UppChannel: API Key OK')
+        else:
+            results['uppchannel']['status'] = 'error'
+            results['uppchannel']['message'] = 'API Key não configurada'
+            add_log('ERROR', '❌ API Key UppChannel não encontrada')
     except Exception as e:
         results['uppchannel']['status'] = 'error'
         results['uppchannel']['message'] = str(e)
