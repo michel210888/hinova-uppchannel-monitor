@@ -352,19 +352,34 @@ class HinovaAPI:
                 "Authorization": f"Bearer {token_cache['bearer_token']}",
                 "token": token_cache['user_token']
             }
+            
+            # Converter data de YYYY-MM-DD para DD/MM/YYYY (formato que a API espera)
+            from datetime import datetime as dt
+            data_inicio_br = dt.strptime(data_inicio, '%Y-%m-%d').strftime('%d/%m/%Y')
+            data_fim_br = dt.strptime(data_fim, '%Y-%m-%d').strftime('%d/%m/%Y')
+            
+            # A API Hinova usa campos diferentes!
             payload = {
-                "data_inicio": data_inicio,
-                "data_fim": data_fim
+                "data_cadastro": data_inicio_br,
+                "data_cadastro_final": data_fim_br
             }
+            
+            add_log('INFO', f'   Payload: data_cadastro={data_inicio_br}, data_cadastro_final={data_fim_br}')
+            add_log('INFO', f'   Headers: Bearer ...{token_cache["bearer_token"][-10:]}, token: ...{token_cache["user_token"][-10:]}')
             
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             
+            add_log('INFO', f'   Status da resposta: {response.status_code}')
+            
             # Se token expirou, reautenticar
             if response.status_code == 401:
-                add_log('WARNING', '⚠️ Token expirado, reautenticando...')
+                add_log('WARNING', '⚠️ Token expirado (401), reautenticando...')
                 if self.autenticar(force=True):
+                    headers["Authorization"] = f"Bearer {token_cache['bearer_token']}"
                     headers["token"] = token_cache['user_token']
+                    add_log('INFO', '   Tentando novamente com novo token...')
                     response = requests.post(url, json=payload, headers=headers, timeout=30)
+                    add_log('INFO', f'   Novo status: {response.status_code}')
             
             response.raise_for_status()
             
@@ -387,11 +402,15 @@ class HinovaAPI:
                 "token": token_cache['user_token']
             }
             
+            add_log('INFO', f'   Buscando veículo {veiculo_id}...')
+            
             response = requests.get(url, headers=headers, timeout=30)
             
             # Se token expirou, reautenticar
             if response.status_code == 401:
+                add_log('WARNING', '⚠️ Token expirado ao buscar veículo, reautenticando...')
                 if self.autenticar(force=True):
+                    headers["Authorization"] = f"Bearer {token_cache['bearer_token']}"
                     headers["token"] = token_cache['user_token']
                     response = requests.get(url, headers=headers, timeout=30)
             
