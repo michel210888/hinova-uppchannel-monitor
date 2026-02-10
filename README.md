@@ -1,47 +1,60 @@
-# 🎉 SISTEMA FUNCIONANDO!
+# 🎉 SISTEMA CORRIGIDO - API Hinova
 
 ## ✅ PROBLEMA RESOLVIDO!
 
-### O Erro Era Simples:
+### O Que Estava Errado:
 
-A API Hinova retorna:
+A API Hinova usa campos DIFERENTES do que esperávamos:
+
+**ERRADO:**
 ```json
 {
-  "mensagem": "OK",
-  "token_usuario": "abc123..."
+  "data_inicio": "2026-02-10",
+  "data_fim": "2026-02-10"
 }
 ```
 
-O código estava procurando por `token` mas o campo correto é `token_usuario`!
+**CORRETO:**
+```json
+{
+  "data_cadastro": "10/02/2026",
+  "data_cadastro_final": "10/02/2026"
+}
+```
 
 ## 🔧 Correções Aplicadas:
 
-1. ✅ Campo correto: `token_usuario` (não `token`)
-2. ✅ Horário dos logs corrigido (UTC-3 Brasil)
-3. ✅ Token management correto
-4. ✅ Logs super detalhados
+1. ✅ Nomes dos campos corretos:
+   - `data_inicio` → `data_cadastro`
+   - `data_fim` → `data_cadastro_final`
 
-## 🚀 O Que Esperar Agora:
+2. ✅ Formato de data correto:
+   - `YYYY-MM-DD` → `DD/MM/YYYY`
+   - `2026-02-10` → `10/02/2026`
 
-Logs de sucesso:
+3. ✅ Token correto: `token_usuario`
+
+4. ✅ Headers corretos: Bearer + token
+
+## 🚀 O Que Esperar:
+
 ```
-🔑 Autenticando na API Hinova...
-   Bearer Token: ef9be584157...
-   Usuário: roboeventos
-   Status HTTP: 200
-   Resposta JSON keys: ['mensagem', 'token_usuario']
 ✓ Autenticação bem-sucedida!
-   User Token: 77c1281eeca6da44bd1e893ab0ff...
-   Válido até: 20:30:00
+📋 Buscando eventos de 2026-02-10...
+   Payload: data_cadastro=10/02/2026
+   Status: 200
+✓ 5 eventos encontrados
+📝 Processando evento 20263244...
+✓ Mensagem enviada!
 ```
 
 ## 📊 Deploy:
 
 1. Substitua app.py no GitHub
 2. Aguarde redeploy
-3. Execute teste manual
+3. Execute teste
 4. FUNCIONANDO! ✅
 
 ---
 
-**Obrigado por testar com Insomnia e descobrir que o campo é `token_usuario`!** 🎯
+**Obrigado por testar no Insomnia e descobrir os campos corretos!** 🎯
