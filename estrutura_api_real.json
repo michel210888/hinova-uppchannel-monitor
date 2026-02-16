@@ -1,0 +1,118 @@
+{
+  "NOTA": "Estrutura REAL dos eventos retornados pela API Hinova - Descoberta via Postman em 16/02/2026",
+  "endpoint": "POST https://api.hinova.com.br/api/sga/v2/listar/evento",
+  "body_request": {
+    "data_cadastro": "15/02/2026",
+    "data_cadastro_final": "16/02/2026",
+    "evento_situacao": [15]
+  },
+  "resposta_formato": "Lista direta (array JSON)",
+  "evento_exemplo": {
+    "codigo": 4797,
+    "codigo_evento": 3369,
+    "codigo_classificacao": 2,
+    "codigo_veiculo": 15901,
+    "codigo_associado": 897,
+    "valor_reparo": "0.00",
+    "previsao_valor_reparo": 0,
+    "valor_fipe": 129467,
+    "valor_depreciacao_veiculo": 0,
+    "participacao": 5256.36,
+    "passivel_ressarcimento": "",
+    "evento_tipo": "ASSOCIADO",
+    "motivo": "COLISÃO",
+    "envolvimento": "CAUSADOR",
+    "situacao_evento": "2.1 - ANÁLISE",
+    "data_evento": "2026-02-16",
+    "hora_evento": "00:48:00",
+    "data_comunicacao_evento": "2026-02-16",
+    "data_cadastro": "2026-02-16",
+    "hora_cadastro": "00:57:45",
+    "logradouro": "AVENIDA GETULIO VARGAS",
+    "numero": "19",
+    "bairro": "CENTRO",
+    "cidade": "ORLEANS",
+    "estado": "SC",
+    "cep": "88870-000",
+    "complemento": "",
+    "numero_bo": "123456789",
+    "solicitou_carro_reserva": "N",
+    "descricao_evento_area": "",
+    "evento_relacionado": "",
+    "protocolo": "20263278",
+    "associado": {
+      "codigo": 897,
+      "nome": "MICHEL ACORDI ALEXANDRE",
+      "cpf": "06486557923",
+      "logradouro": "RUA HUGO CARLOS CLAUMANN",
+      "numero": "389",
+      "bairro": "CENTRO",
+      "cidade": "ORLEANS",
+      "estado": "SC",
+      "cep": "88870-000",
+      "sexo": "M",
+      "data_nascimento": "1988-08-21",
+      "cnh": "03955108742",
+      "data_vencimento_habilitacao": "2027-02-23",
+      "rg": "5998001",
+      "email": "michel.alexandre1@gmail.com",
+      "email_auxiliar": "michel.alexandre1@gmail.com",
+      "telefone": "(48)99640-1441",
+      "telefone_comercial": null,
+      "telefone_celular": "(48)99640-1441"
+    },
+    "veiculo": {
+      "codigo": "15901",
+      "placa": "PDG8H26",
+      "data_contrato": "2025-10-18",
+      "chassi": "93HFC1690KZ211738",
+      "ano_fabricacao": "2019",
+      "ano_modelo": "2019",
+      "valor_fipe": "130599.00",
+      "renavam": "01189119177",
+      "quantidade_portas": "0",
+      "numero_motor": "L15B74021679",
+      "tipo": "FAIXA 02",
+      "modelo": "CIVIC SEDAN TOURING 1.5 TURBO 16V AUT.4P",
+      "cor": "AZUL",
+      "marca": "HONDA",
+      "categoria": "COTA 01",
+      "classificacao": "ATIVO",
+      "combustivel": "GASOLINA",
+      "regional": {"codigo": "3", "descricao": "UNIVERSAL BENEFICIOS - ORLEANS"},
+      "cooperativa": {"codigo": "1", "descricao": "UB PROTEÇÃO VEICULAR - INTERNOS - PR"},
+      "voluntario": {"codigo": "1", "nome": "UNIVERSAL BENEFICIOS"}
+    }
+  },
+  "MAPEAMENTO_CAMPOS": {
+    "SITUACAO": {
+      "campo_correto": "situacao_evento",
+      "formato": "string com código e nome juntos, ex: '2.1 - ANÁLISE'",
+      "como_extrair_codigo": "situacao_evento.split(' - ')[0] → '2.1'",
+      "como_extrair_nome": "situacao_evento.split(' - ', 1)[1] → 'ANÁLISE'",
+      "ERRADO_antes": "evento.get('situacao', {}).get('codigo')"
+    },
+    "PROTOCOLO": {
+      "campo_correto": "protocolo",
+      "formato": "string"
+    },
+    "MOTIVO": {
+      "campo_correto": "motivo",
+      "formato": "string direta, ex: 'COLISÃO'",
+      "ERRADO_antes": "evento.get('motivo', {}).get('nome')"
+    },
+    "TELEFONE": {
+      "campo_correto": "associado.telefone ou associado.telefone_celular",
+      "formato": "string com formatação, ex: '(48)99640-1441'"
+    },
+    "VEICULO": {
+      "campo_correto": "veiculo (objeto aninhado)",
+      "placa": "veiculo.placa",
+      "codigo": "veiculo.codigo"
+    },
+    "ASSOCIADO": {
+      "campo_correto": "associado (objeto aninhado)",
+      "nome": "associado.nome"
+    }
+  }
+}

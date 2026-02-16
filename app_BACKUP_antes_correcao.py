@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 """
-Sistema Hinova → UppChannel - Versão CORRIGIDA
-Com detecção de mudanças de status e rastreamento persistente
-
-CORREÇÕES IMPLEMENTADAS:
-1. ✅ Rastreamento de mudanças de status (tabela evento_historico)
-2. ✅ Busca de eventos dos últimos 7 dias (não apenas hoje)
-3. ✅ Persistência do estado no banco de dados
-4. ✅ Logs detalhados de comparação de situações
-5. ✅ Detecção de mudanças reais de status
+Sistema Hinova → UppChannel - Versão Completa
+Com banco de dados, logs em tempo real e interface web
 """
 
 import os
@@ -45,10 +38,7 @@ system_state = {
         'total_runs': 0,
         'successful_messages': 0,
         'failed_messages': 0,
-        'last_error': None,
-        'eventos_novos': 0,
-        'eventos_mudanca': 0,
-        'eventos_sem_mudanca': 0
+        'last_error': None
     },
     'logs': [],
     'max_logs': 200
@@ -64,7 +54,7 @@ token_cache = {
 # ==================== BANCO DE DADOS ====================
 
 def init_database():
-    """Inicializa banco de dados SQLite com nova tabela de histórico"""
+    """Inicializa banco de dados SQLite"""
     with db_lock:
         conn = sqlite3.connect('/tmp/hinova_messages.db')
         c = conn.cursor()
@@ -84,20 +74,6 @@ def init_database():
                 erro TEXT,
                 nome_associado TEXT,
                 placa TEXT
-            )
-        ''')
-        
-        # NOVA: Tabela de histórico de situações (evita duplicatas)
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS evento_historico (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                protocolo TEXT NOT NULL,
-                situacao_codigo INTEGER NOT NULL,
-                situacao_nome TEXT,
-                data_deteccao TEXT NOT NULL,
-                data_notificacao TEXT,
-                status_notificacao TEXT,
-                UNIQUE(protocolo, situacao_codigo)
             )
         ''')
         
@@ -124,106 +100,6 @@ def init_database():
         conn.close()
     
     logger.info("✓ Banco de dados inicializado")
-
-def verificar_situacao_ja_notificada(protocolo, situacao_codigo):
-    """Verifica se esta combinação protocolo+situação já foi notificada"""
-    with db_lock:
-        try:
-            conn = sqlite3.connect('/tmp/hinova_messages.db')
-            c = conn.cursor()
-            
-            c.execute('''
-                SELECT id, data_notificacao, status_notificacao 
-                FROM evento_historico 
-                WHERE protocolo = ? AND situacao_codigo = ?
-            ''', (protocolo, situacao_codigo))
-            
-            row = c.fetchone()
-            conn.close()
-            
-            if row:
-                return True, {
-                    'id': row[0],
-                    'data_notificacao': row[1],
-                    'status': row[2]
-                }
-            return False, None
-            
-        except Exception as e:
-            logger.error(f"Erro ao verificar histórico: {e}")
-            return False, None
-
-def registrar_situacao_detectada(protocolo, situacao_codigo, situacao_nome):
-    """Registra que esta situação foi detectada (mas ainda não notificada)"""
-    with db_lock:
-        try:
-            conn = sqlite3.connect('/tmp/hinova_messages.db')
-            c = conn.cursor()
-            
-            c.execute('''
-                INSERT OR IGNORE INTO evento_historico 
-                (protocolo, situacao_codigo, situacao_nome, data_deteccao)
-                VALUES (?, ?, ?, ?)
-            ''', (protocolo, situacao_codigo, situacao_nome, datetime.now().isoformat()))
-            
-            conn.commit()
-            conn.close()
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erro ao registrar situação: {e}")
-            return False
-
-def marcar_situacao_como_notificada(protocolo, situacao_codigo, status='ENVIADO'):
-    """Marca que a notificação foi enviada para esta situação"""
-    with db_lock:
-        try:
-            conn = sqlite3.connect('/tmp/hinova_messages.db')
-            c = conn.cursor()
-            
-            c.execute('''
-                UPDATE evento_historico 
-                SET data_notificacao = ?, status_notificacao = ?
-                WHERE protocolo = ? AND situacao_codigo = ?
-            ''', (datetime.now().isoformat(), status, protocolo, situacao_codigo))
-            
-            conn.commit()
-            conn.close()
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erro ao marcar notificação: {e}")
-            return False
-
-def get_ultima_situacao(protocolo):
-    """Retorna a última situação conhecida de um protocolo"""
-    with db_lock:
-        try:
-            conn = sqlite3.connect('/tmp/hinova_messages.db')
-            c = conn.cursor()
-            
-            c.execute('''
-                SELECT situacao_codigo, situacao_nome, data_deteccao 
-                FROM evento_historico 
-                WHERE protocolo = ?
-                ORDER BY data_deteccao DESC
-                LIMIT 1
-            ''', (protocolo,))
-            
-            row = c.fetchone()
-            conn.close()
-            
-            if row:
-                return {
-                    'codigo': row[0],
-                    'nome': row[1],
-                    'data': row[2]
-                }
-            return None
-            
-        except Exception as e:
-            logger.error(f"Erro ao buscar última situação: {e}")
-            return None
 
 def save_message_log(protocolo, evento_id, situacao_codigo, situacao_nome, 
                      telefone, mensagem, status, erro=None, nome_associado=None, placa=None):
@@ -497,19 +373,8 @@ class HinovaAPI:
             if response.status_code == 200:
                 add_log('SUCCESS', '✓ FUNCIONOU com apenas user_token!')
                 data = response.json()
-                
-                # A API pode retornar lista direta ou objeto com 'eventos'
-                if isinstance(data, list):
-                    eventos = data
-                    add_log('INFO', f'   Formato: Lista direta')
-                elif isinstance(data, dict):
-                    eventos = data.get('eventos', [])
-                    add_log('INFO', f'   Formato: Objeto com chave "eventos"')
-                else:
-                    add_log('ERROR', f'   Formato inesperado: {type(data)}')
-                    eventos = []
-                
-                add_log('INFO', f'✓ {len(eventos)} eventos encontrados no período')
+                eventos = data.get('eventos', [])
+                add_log('INFO', f'✓ {len(eventos)} eventos encontrados')
                 return eventos
             
             # TESTE 2: Bearer + token separado
@@ -526,19 +391,8 @@ class HinovaAPI:
             if response.status_code == 200:
                 add_log('SUCCESS', '✓ FUNCIONOU com Bearer + token separado!')
                 data = response.json()
-                
-                # A API pode retornar lista direta ou objeto com 'eventos'
-                if isinstance(data, list):
-                    eventos = data
-                    add_log('INFO', f'   Formato: Lista direta')
-                elif isinstance(data, dict):
-                    eventos = data.get('eventos', [])
-                    add_log('INFO', f'   Formato: Objeto com chave "eventos"')
-                else:
-                    add_log('ERROR', f'   Formato inesperado: {type(data)}')
-                    eventos = []
-                
-                add_log('INFO', f'✓ {len(eventos)} eventos encontrados no período')
+                eventos = data.get('eventos', [])
+                add_log('INFO', f'✓ {len(eventos)} eventos encontrados')
                 return eventos
             
             # TESTE 3: token_usuario como header
@@ -555,19 +409,8 @@ class HinovaAPI:
             if response.status_code == 200:
                 add_log('SUCCESS', '✓ FUNCIONOU com token_usuario!')
                 data = response.json()
-                
-                # A API pode retornar lista direta ou objeto com 'eventos'
-                if isinstance(data, list):
-                    eventos = data
-                    add_log('INFO', f'   Formato: Lista direta')
-                elif isinstance(data, dict):
-                    eventos = data.get('eventos', [])
-                    add_log('INFO', f'   Formato: Objeto com chave "eventos"')
-                else:
-                    add_log('ERROR', f'   Formato inesperado: {type(data)}')
-                    eventos = []
-                
-                add_log('INFO', f'✓ {len(eventos)} eventos encontrados no período')
+                eventos = data.get('eventos', [])
+                add_log('INFO', f'✓ {len(eventos)} eventos encontrados')
                 return eventos
             
             # Se nenhuma funcionou
@@ -584,15 +427,7 @@ class HinovaAPI:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    
-                    # A API pode retornar lista direta ou objeto com 'eventos'
-                    if isinstance(data, list):
-                        eventos = data
-                    elif isinstance(data, dict):
-                        eventos = data.get('eventos', [])
-                    else:
-                        eventos = []
-                    
+                    eventos = data.get('eventos', [])
                     add_log('SUCCESS', f'✓ {len(eventos)} eventos encontrados após reautenticação')
                     return eventos
             
@@ -684,8 +519,7 @@ def carregar_configuracao():
             'api_key': os.getenv('UPPCHANNEL_API_KEY')
         },
         'situacoes_ativas': [int(x) for x in os.getenv('SITUACOES_ATIVAS', '6,15,11,23,38,80,82,30,40,5,10,3,45,77,76,33,8,29,70,71,72,79,32,59,4,20,61').split(',')],
-        'intervalo_minutos': int(os.getenv('INTERVALO_MINUTOS', '15')),
-        'dias_busca': int(os.getenv('DIAS_BUSCA', '7'))  # NOVO: Quantos dias buscar no passado
+        'intervalo_minutos': int(os.getenv('INTERVALO_MINUTOS', '15'))
     }
     
     # Templates padrão
@@ -698,142 +532,20 @@ def carregar_configuracao():
     return config
 
 
-# ==================== MAPEAMENTO DE SITUAÇÕES ====================
-
-# Mapeamento: código da API Hinova ("2.1", "3.0", etc.) → código interno do sistema
-# Baseado nos templates do config.json e no guia de situações
-SITUACAO_API_PARA_INTERNO = {
-    # Formato: "codigo_api": codigo_interno
-    "1.0": 6,    # COMUNICADO
-    "2.1": 15,   # ANÁLISE
-    "3.0": 11,   # AUTORIZADO EM ORÇAMENTO
-    "3.1": 23,   # COTA DE PARTICIPAÇÃO
-    "3.2": 38,   # ACORDO EM ANDAMENTO
-    "3.3": 80,   # CARRO RESERVA
-    "3.8": 82,   # CARRO RESERVA FINALIZADO
-    "3.9": 30,   # ACORDO FINALIZADO
-    "4.0": 40,   # COMPRA DE PEÇAS
-    "4.2": 5,    # REPAROS LIBERADOS
-    "4.7": 10,   # VEÍCULO ENTREGUE
-    "4.9": 3,    # FINALIZADO
-    "5.2": 45,   # GARANTIA AUTORIZADA
-    "5.7": 77,   # GARANTIA ENTREGUE
-    "5.9": 76,   # GARANTIA FINALIZADA
-    "6.0": 33,   # INDENIZAÇÃO AGENDADA
-    "6.8": 8,    # ROUBO/FURTO FINALIZADO
-    "9.0": 29,   # OPCIONAL ABERTO
-    "9.1": 70,   # OPCIONAL COTAÇÃO
-    "9.2": 71,   # OPIC. COTA PARTICIPAÇÃO
-    "9.3": 72,   # OPCIONAL LIBERADO
-    "9.4": 79,   # OPCIONAL ENTREGUE
-    "9.9": 32,   # OPCIONAL FINALIZADO
-}
-
-# Mapeamento reverso por nome (fallback)
-SITUACAO_NOME_PARA_INTERNO = {
-    "COMUNICADO": 6,
-    "ANÁLISE": 15,
-    "ANALISE": 15,
-    "AUTORIZADO EM ORÇAMENTO": 11,
-    "AUTORIZADO EM ORCAMENTO": 11,
-    "COTA DE PARTICIPAÇÃO": 23,
-    "COTA DE PARTICIPACAO": 23,
-    "ACORDO EM ANDAMENTO": 38,
-    "CARRO RESERVA": 80,
-    "CARRO RESERVA FINALIZADO": 82,
-    "ACORDO FINALIZADO": 30,
-    "COMPRA DE PEÇAS": 40,
-    "COMPRA DE PECAS": 40,
-    "REPAROS LIBERADOS": 5,
-    "VEÍCULO ENTREGUE": 10,
-    "VEICULO ENTREGUE": 10,
-    "FINALIZADO": 3,
-    "GARANTIA AUTORIZADA": 45,
-    "GARANTIA ENTREGUE": 77,
-    "GARANTIA FINALIZADA": 76,
-    "INDENIZAÇÃO AGENDADA": 33,
-    "INDENIZACAO AGENDADA": 33,
-    "ROUBO/FURTO FINALIZADO": 8,
-    "OPCIONAL ABERTO": 29,
-    "OPCIONAL COTAÇÃO": 70,
-    "OPCIONAL COTACAO": 70,
-    "OPIC. COTA PARTICIPAÇÃO": 71,
-    "OPIC. COTA PARTICIPACAO": 71,
-    "OPCIONAL LIBERADO": 72,
-    "OPCIONAL ENTREGUE": 79,
-    "OPCIONAL FINALIZADO": 32,
-    "OPCIONAL FINALIZADO 1": 59,
-    "COBRANÇA FIDELIDADE": 4,
-    "COBRANCA FIDELIDADE": 4,
-    "VEÍCULO RESERVA": 61,
-    "VEICULO RESERVA": 61,
-    "FINALIZADO REPAROS PELO TERCEIRO": 20,
-}
-
-def mapear_situacao_api_para_interno(codigo_api, nome_situacao):
-    """Mapeia o código da API Hinova para o código interno do sistema
-    
-    A API retorna: "2.1 - ANÁLISE" → código_api="2.1", nome="ANÁLISE"
-    O sistema usa: código interno 15 para ANÁLISE
-    """
-    # Tentar pelo código da API primeiro
-    if codigo_api in SITUACAO_API_PARA_INTERNO:
-        codigo_interno = SITUACAO_API_PARA_INTERNO[codigo_api]
-        add_log('INFO', f'   📋 Mapeamento: API "{codigo_api}" → interno {codigo_interno} ({nome_situacao})')
-        return codigo_interno
-    
-    # Fallback: tentar pelo nome
-    nome_upper = str(nome_situacao).upper().strip()
-    if nome_upper in SITUACAO_NOME_PARA_INTERNO:
-        codigo_interno = SITUACAO_NOME_PARA_INTERNO[nome_upper]
-        add_log('INFO', f'   📋 Mapeamento por nome: "{nome_situacao}" → interno {codigo_interno}')
-        return codigo_interno
-    
-    # Não encontrado
-    add_log('WARNING', f'   ⚠️ Situação não mapeada: código API="{codigo_api}", nome="{nome_situacao}"')
-    return None
-
-
 # ==================== PROCESSAMENTO ====================
 
 def formatar_mensagem(template, evento, veiculo_data):
     """Formata mensagem substituindo variáveis"""
     try:
-        # Dados do associado (podem vir do evento ou do veículo)
-        associado_evento = evento.get('associado', {})
-        associado_veiculo = veiculo_data.get('associado', {}) if isinstance(veiculo_data, dict) else {}
-        
-        nome = associado_evento.get('nome') or associado_veiculo.get('nome') or 'Cliente'
-        placa = (veiculo_data.get('placa') if isinstance(veiculo_data, dict) else None) or evento.get('veiculo', {}).get('placa', 'N/A')
-        
-        # Situação: campo direto "situacao_evento" (string)
-        situacao_str = evento.get('situacao_evento', 'N/A')
-        if ' - ' in str(situacao_str):
-            situacao_nome = str(situacao_str).split(' - ', 1)[1]
-        else:
-            situacao_nome = str(situacao_str)
-        
-        # Motivo: campo direto "motivo" (string na API real)
-        motivo = evento.get('motivo', 'N/A')
-        if isinstance(motivo, dict):
-            motivo = motivo.get('nome', 'N/A')
-        
-        # Data do evento
-        data_evento = evento.get('data_evento', datetime.now().strftime('%d/%m/%Y'))
-        # Converter de YYYY-MM-DD para DD/MM/YYYY se necessário
-        if data_evento and '-' in str(data_evento) and len(str(data_evento)) == 10:
-            try:
-                data_evento = datetime.strptime(str(data_evento), '%Y-%m-%d').strftime('%d/%m/%Y')
-            except:
-                pass
+        associado = veiculo_data.get('associado', {})
         
         mensagem = template.format(
-            nome_associado=nome,
+            nome_associado=associado.get('nome', 'Cliente'),
             protocolo=evento.get('protocolo', 'N/A'),
-            placa=placa,
-            situacao=situacao_nome,
-            motivo=motivo,
-            data_evento=data_evento
+            placa=veiculo_data.get('placa', 'N/A'),
+            situacao=evento.get('situacao', {}).get('nome', 'N/A'),
+            motivo=evento.get('motivo', {}).get('nome', 'N/A'),
+            data_evento=evento.get('data_evento', datetime.now().strftime('%d/%m/%Y'))
         )
         
         return mensagem
@@ -866,7 +578,7 @@ def extrair_telefone(associado_data):
 
 
 def processar_eventos():
-    """Função principal de processamento - VERSÃO CORRIGIDA"""
+    """Função principal de processamento"""
     if system_state['is_running']:
         add_log('WARNING', '⚠️ Processamento já em execução, pulando...')
         return
@@ -875,14 +587,9 @@ def processar_eventos():
     system_state['last_run'] = datetime.now()
     system_state['stats']['total_runs'] += 1
     
-    # Resetar contadores
-    system_state['stats']['eventos_novos'] = 0
-    system_state['stats']['eventos_mudanca'] = 0
-    system_state['stats']['eventos_sem_mudanca'] = 0
-    
     try:
         add_log('INFO', '=' * 60)
-        add_log('INFO', '🚀 INICIANDO PROCESSAMENTO DE EVENTOS (VERSÃO CORRIGIDA)')
+        add_log('INFO', '🚀 INICIANDO PROCESSAMENTO DE EVENTOS')
         add_log('INFO', '=' * 60)
         
         system_state['current_step'] = 'Carregando configuração...'
@@ -919,125 +626,63 @@ def processar_eventos():
         
         add_log('SUCCESS', f'✓ Token de usuário válido até {token_cache["expires_at"].strftime("%H:%M:%S")}')
         
-        # CORREÇÃO #1: Buscar eventos dos últimos X dias (não apenas hoje!)
+        # Buscar eventos (usa o token em cache)
         system_state['current_step'] = 'Buscando eventos...'
-        dias_busca = config.get('dias_busca', 7)
-        data_inicio = (datetime.now() - timedelta(days=dias_busca)).strftime('%Y-%m-%d')
-        data_fim = datetime.now().strftime('%Y-%m-%d')
-        
-        add_log('INFO', f'📅 Buscando eventos dos últimos {dias_busca} dias ({data_inicio} a {data_fim})')
-        
-        eventos = hinova.listar_eventos(data_inicio, data_fim)
+        hoje = datetime.now().strftime('%Y-%m-%d')
+        eventos = hinova.listar_eventos(hoje, hoje)
         
         if not eventos:
-            system_state['last_status'] = f"✓ Nenhum evento encontrado nos últimos {dias_busca} dias"
-            add_log('INFO', f'✓ Nenhum evento para processar nos últimos {dias_busca} dias')
+            system_state['last_status'] = f"✓ Nenhum evento para {hoje}"
+            add_log('INFO', '✓ Nenhum evento para processar hoje')
             return
         
-        add_log('INFO', f'📊 Total de eventos encontrados: {len(eventos)}')
-        
-        # Processar eventos
+        # Processar eventos (todos com o MESMO token)
         system_state['current_step'] = f'Processando {len(eventos)} eventos...'
-        mensagens_enviadas = 0
-        eventos_analisados = 0
+        eventos_processados = 0
         
         for idx, evento in enumerate(eventos, 1):
             try:
                 system_state['current_step'] = f'Processando evento {idx}/{len(eventos)}...'
                 
                 protocolo = evento.get('protocolo')
+                situacao_codigo = evento.get('situacao', {}).get('codigo')
+                situacao_nome = evento.get('situacao', {}).get('nome')
                 
-                # CORREÇÃO CRÍTICA: A API Hinova retorna situação como string
-                # Formato: "2.1 - ANÁLISE" no campo "situacao_evento"
-                situacao_evento_str = evento.get('situacao_evento', '')
+                # ID único
+                evento_id = f"{protocolo}_{situacao_codigo}"
                 
-                # Extrair código e nome da string
-                if ' - ' in str(situacao_evento_str):
-                    partes = str(situacao_evento_str).split(' - ', 1)
-                    situacao_codigo_api = partes[0].strip()  # Ex: "2.1"
-                    situacao_nome = partes[1].strip()         # Ex: "ANÁLISE"
-                else:
-                    situacao_codigo_api = str(situacao_evento_str).strip()
-                    situacao_nome = situacao_evento_str
-                
-                # Mapear código da API para código interno do sistema
-                # A API usa códigos como "2.1", "3.0", etc.
-                # O sistema usa códigos numéricos internos como 15, 11, etc.
-                situacao_codigo = mapear_situacao_api_para_interno(situacao_codigo_api, situacao_nome)
-                
-                eventos_analisados += 1
+                # Verificar se já processado
+                if evento_id in system_state['processed_events']:
+                    add_log('INFO', f'⏭️ Evento {protocolo} já processado')
+                    continue
                 
                 # Verificar situação ativa
-                if situacao_codigo is None or situacao_codigo not in config['situacoes_ativas']:
-                    add_log('INFO', f'⏭️ Protocolo {protocolo}: Situação "{situacao_evento_str}" (código interno: {situacao_codigo}) não está ativa')
+                if situacao_codigo not in config['situacoes_ativas']:
+                    add_log('INFO', f'⏭️ Situação {situacao_codigo} não está ativa')
                     continue
                 
-                # CORREÇÃO #2: Verificar se já foi notificada
-                ja_notificada, historico = verificar_situacao_ja_notificada(protocolo, situacao_codigo)
+                add_log('INFO', f'📝 Processando evento {protocolo} (situação: {situacao_nome})')
                 
-                if ja_notificada:
-                    add_log('INFO', f'⏭️ Protocolo {protocolo}: Situação {situacao_codigo} ({situacao_nome}) já foi notificada em {historico["data_notificacao"]}')
-                    system_state['stats']['eventos_sem_mudanca'] += 1
+                # Buscar veículo (usa o MESMO token em cache)
+                veiculo_id = evento.get('veiculo', {}).get('codigo')
+                if not veiculo_id:
+                    add_log('WARNING', f'⚠️ Evento {protocolo} sem veículo')
                     continue
                 
-                # CORREÇÃO #3: Detectar se é novo ou mudança
-                ultima_situacao = get_ultima_situacao(protocolo)
+                veiculo_data = hinova.buscar_veiculo(veiculo_id)
+                if not veiculo_data:
+                    continue
                 
-                if ultima_situacao is None:
-                    add_log('INFO', f'🆕 Protocolo {protocolo}: NOVO evento detectado (situação: {situacao_nome})')
-                    system_state['stats']['eventos_novos'] += 1
-                else:
-                    add_log('INFO', f'🔄 Protocolo {protocolo}: MUDANÇA detectada')
-                    add_log('INFO', f'   Situação anterior: {ultima_situacao["nome"]} (código {ultima_situacao["codigo"]})')
-                    add_log('INFO', f'   Situação atual: {situacao_nome} (código {situacao_codigo})')
-                    system_state['stats']['eventos_mudanca'] += 1
-                
-                # Registrar que detectamos esta situação
-                registrar_situacao_detectada(protocolo, situacao_codigo, situacao_nome)
-                
-                add_log('INFO', f'📝 Processando notificação para protocolo {protocolo} (situação: {situacao_nome})')
-                
-                # CORREÇÃO: Dados já vêm no próprio evento, não precisa buscar separado
-                veiculo_data_evento = evento.get('veiculo', {})
-                associado_data_evento = evento.get('associado', {})
-                
-                # Extrair dados diretamente do evento
-                nome_associado = associado_data_evento.get('nome', 'Cliente')
-                placa = veiculo_data_evento.get('placa', 'N/A') if isinstance(veiculo_data_evento, dict) else 'N/A'
-                
-                # Extrair telefone do associado (campos reais da API)
-                telefone = None
-                tel_celular = associado_data_evento.get('telefone_celular', '') or ''
-                tel_fixo = associado_data_evento.get('telefone', '') or ''
-                tel_comercial = associado_data_evento.get('telefone_comercial', '') or ''
-                
-                for tel in [tel_celular, tel_fixo, tel_comercial]:
-                    if tel:
-                        tel_limpo = ''.join(filter(str.isdigit, str(tel)))
-                        if len(tel_limpo) >= 10:
-                            telefone = tel_limpo
-                            break
-                
-                # Se não encontrou no evento, tentar buscar veículo pela API
-                veiculo_id = veiculo_data_evento.get('codigo') if isinstance(veiculo_data_evento, dict) else evento.get('codigo_veiculo')
-                veiculo_data = veiculo_data_evento  # Usar dados do evento como base
-                
-                if not telefone and veiculo_id:
-                    add_log('INFO', f'   Telefone não encontrado no evento, buscando via API...')
-                    veiculo_api = hinova.buscar_veiculo(veiculo_id)
-                    if veiculo_api:
-                        veiculo_data = veiculo_api
-                        associado_api = veiculo_api.get('associado', {})
-                        if not nome_associado or nome_associado == 'Cliente':
-                            nome_associado = associado_api.get('nome', nome_associado)
-                        if not placa or placa == 'N/A':
-                            placa = veiculo_api.get('placa', placa)
-                        telefone = extrair_telefone(associado_api)
+                # Extrair dados
+                associado = veiculo_data.get('associado', {})
+                nome_associado = associado.get('nome', 'Cliente')
+                placa = veiculo_data.get('placa', 'N/A')
+                telefone = extrair_telefone(associado)
                 
                 if not telefone:
                     add_log('WARNING', f'⚠️ Telefone não encontrado para {protocolo}')
                     save_message_log(
-                        protocolo, f"{protocolo}_{situacao_codigo}", situacao_codigo, situacao_nome,
+                        protocolo, evento_id, situacao_codigo, situacao_nome,
                         None, None, 'ERRO', 'Telefone não encontrado',
                         nome_associado, placa
                     )
@@ -1057,23 +702,19 @@ def processar_eventos():
                 
                 # Enviar mensagem
                 if uppchannel.enviar_mensagem(telefone, mensagem):
-                    mensagens_enviadas += 1
+                    system_state['processed_events'].add(evento_id)
+                    eventos_processados += 1
                     system_state['stats']['successful_messages'] += 1
                     
-                    # CORREÇÃO #4: Marcar como notificada
-                    marcar_situacao_como_notificada(protocolo, situacao_codigo, 'ENVIADO')
-                    
                     save_message_log(
-                        protocolo, f"{protocolo}_{situacao_codigo}", situacao_codigo, situacao_nome,
+                        protocolo, evento_id, situacao_codigo, situacao_nome,
                         telefone, mensagem, 'ENVIADO', None,
                         nome_associado, placa
                     )
                 else:
                     system_state['stats']['failed_messages'] += 1
-                    marcar_situacao_como_notificada(protocolo, situacao_codigo, 'FALHOU')
-                    
                     save_message_log(
-                        protocolo, f"{protocolo}_{situacao_codigo}", situacao_codigo, situacao_nome,
+                        protocolo, evento_id, situacao_codigo, situacao_nome,
                         telefone, mensagem, 'FALHOU', 'Erro no envio',
                         nome_associado, placa
                     )
@@ -1083,18 +724,8 @@ def processar_eventos():
                 system_state['stats']['failed_messages'] += 1
                 continue
         
-        # Resumo final
-        add_log('INFO', '=' * 60)
-        add_log('INFO', f'📊 RESUMO DO PROCESSAMENTO:')
-        add_log('INFO', f'   Total de eventos analisados: {eventos_analisados}')
-        add_log('INFO', f'   Eventos novos: {system_state["stats"]["eventos_novos"]}')
-        add_log('INFO', f'   Mudanças de situação: {system_state["stats"]["eventos_mudanca"]}')
-        add_log('INFO', f'   Sem mudança (já notificados): {system_state["stats"]["eventos_sem_mudanca"]}')
-        add_log('INFO', f'   Mensagens enviadas: {mensagens_enviadas}')
-        add_log('INFO', '=' * 60)
-        
-        system_state['last_status'] = f"✓ {mensagens_enviadas} mensagens enviadas ({eventos_analisados} eventos analisados)"
-        add_log('SUCCESS', f'✓ Processamento concluído: {mensagens_enviadas} mensagens enviadas')
+        system_state['last_status'] = f"✓ {eventos_processados} mensagens enviadas"
+        add_log('SUCCESS', f'✓ Processamento concluído: {eventos_processados} mensagens')
         system_state['stats']['last_error'] = None
         
     except Exception as e:
@@ -1109,7 +740,6 @@ def processar_eventos():
 
 
 # ==================== ROTAS FLASK ====================
-# (Mantidas as mesmas rotas do código original)
 
 @app.route('/')
 def index():
@@ -1241,11 +871,11 @@ def index():
         async function updateStatus(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('totalRuns').textContent=d.stats.total_runs;document.getElementById('successMessages').textContent=d.stats.successful_messages;document.getElementById('failedMessages').textContent=d.stats.failed_messages;document.getElementById('processedEvents').textContent=d.processed_events_count;const si=document.getElementById('statusIndicator');const cs=document.getElementById('currentStep');const ss=document.getElementById('systemStatus');if(d.is_running){si.className='status-indicator status-running';cs.textContent=d.current_step||'Processando...';ss.textContent='Rodando';}else{si.className='status-indicator status-idle';cs.textContent=d.last_status||'Ocioso';ss.textContent='Ocioso';}updateLogs(d.logs);document.getElementById('lastUpdate').textContent=new Date().toLocaleTimeString('pt-BR');}catch(e){console.error(e);}}
         function updateLogs(logs){const c=document.getElementById('logContainer');c.innerHTML='';if(!logs||logs.length===0){c.innerHTML='<div style="color:#888;text-align:center;padding:20px;">Nenhum log</div>';return;}logs.forEach(l=>{const e=document.createElement('div');e.className='log-entry';e.innerHTML=`<span class="log-timestamp">${l.timestamp}</span><span class="log-level ${l.level}">${l.level}</span><span class="log-message">${l.message}</span>`;c.appendChild(e);});}
         async function refreshFullLogs(){const c=document.getElementById('fullLogContainer');c.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';try{const r=await fetch('/api/logs');const logs=await r.json();c.innerHTML='';logs.forEach(l=>{const e=document.createElement('div');e.className='log-entry';e.innerHTML=`<span class="log-timestamp">${l.timestamp}</span><span class="log-level ${l.level}">${l.level}</span><span class="log-message">${l.message}</span>`;c.appendChild(e);});}catch(e){c.innerHTML='<div style="color:#e74c3c;text-align:center;padding:20px;">Erro</div>';}}
-        async function refreshMessages(){const t=document.getElementById('messagesTableBody');t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;"><div class="spinner"></div>Carregando...</td></tr>';try{const r=await fetch('/api/messages');const m=await r.json();t.innerHTML='';if(m.length===0){t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#888;">Nenhuma mensagem</td></tr>';return;}m.forEach(msg=>{const row=document.createElement('tr');row.innerHTML=`<td>${msg.timestamp}</td><td>${msg.protocolo}</td><td>${msg.situacao}</td><td>${msg.cliente}</td><td><span class="badge ${msg.status==='success'?'badge-success':'badge-error'}">${msg.status}</span></td>`;t.appendChild(row);});}catch(e){t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#e74c3c;">Erro</td></tr>';}}
+        async function refreshMessages(){const t=document.getElementById('messagesTableBody');t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;"><div class="spinner"></div>Carregando...</td></tr>';try{const r=await fetch('/api/messages');const m=await r.json();t.innerHTML='';if(m.length===0){t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#888;">Nenhuma mensagem</td></tr>';return;}m.forEach(msg=>{const row=document.createElement('tr');const ts=new Date(msg.timestamp).toLocaleString('pt-BR');row.innerHTML=`<td>${ts}</td><td>${msg.protocolo||'-'}</td><td>${msg.situacao_nome||'-'}</td><td>${msg.nome_associado||'-'}</td><td><span class="badge ${msg.status==='ENVIADO'?'badge-success':'badge-error'}">${msg.status}</span></td>`;t.appendChild(row);});}catch(e){t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#e74c3c;">Erro</td></tr>';}}
         async function loadConfig(){try{const r=await fetch('/api/config');const c=await r.json();document.getElementById('configHinovaToken').value=c.hinova.token||'';document.getElementById('configHinovaUser').value=c.hinova.usuario||'';document.getElementById('configHinovaPass').value=c.hinova.senha||'';document.getElementById('configUppKey').value=c.uppchannel.api_key||'';document.getElementById('configInterval').value=c.intervalo_minutos||15;document.getElementById('configSituacoes').value=c.situacoes_ativas.join(',');}catch(e){console.error(e);}}
         async function saveConfig(){const c={hinova:{token:document.getElementById('configHinovaToken').value,usuario:document.getElementById('configHinovaUser').value,senha:document.getElementById('configHinovaPass').value},uppchannel:{api_key:document.getElementById('configUppKey').value},intervalo_minutos:parseInt(document.getElementById('configInterval').value),situacoes_ativas:document.getElementById('configSituacoes').value.split(',').map(x=>parseInt(x.trim()))};try{const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});if(r.ok)alert('✅ Salvo!');else alert('❌ Erro');}catch(e){alert('❌ Erro: '+e.message);}}
         async function runNow(){if(confirm('Executar agora?')){try{await fetch('/api/run-now');alert('✓ Iniciado! Veja os logs.');}catch(e){alert('Erro');}}}
-        async function testConnections(){const r=document.getElementById('testResults');r.innerHTML='<div class="loading"><div class="spinner"></div>Testando...</div>';try{const res=await fetch('/api/test-connections');const d=await res.json();let h='';h+='<div style="margin-bottom:20px;padding:20px;background:'+(d.hinova.status==='success'?'#d4edda':'#f8d7da')+';border-radius:10px;border-left:5px solid '+(d.hinova.status==='success'?'#28a745':'#dc3545')+';">'; h+='<h3 style="margin:0 0 10px 0;color:'+(d.hinova.status==='success'?'#155724':'#721c24')+';">'+( d.hinova.status==='success'?'✅':'❌')+' Hinova</h3><p><strong>Status:</strong> '+d.hinova.message+'</p>';if(d.hinova.details&&d.hinova.details.token_cached)h+='<p><strong>Token:</strong> '+d.hinova.details.token_cached+'</p>';h+='</div>';h+='<div style="padding:20px;background:'+(d.uppchannel.status==='success'?'#d4edda':'#f8d7da')+';border-radius:10px;border-left:5px solid '+(d.uppchannel.status==='success'?'#28a745':'#dc3545')+';">'; h+='<h3 style="margin:0 0 10px 0;color:'+(d.uppchannel.status==='success'?'#155724':'#721c24')+';">'+( d.uppchannel.status==='success'?'✅':'❌')+' UppChannel</h3><p><strong>Status:</strong> '+d.uppchannel.message+'</p></div>';r.innerHTML=h;}catch(e){r.innerHTML='<div style="color:#e74c3c;text-align:center;padding:40px;">❌ Erro</div>';}}
+        async function testConnections(){const r=document.getElementById('testResults');r.innerHTML='<div class="loading"><div class="spinner"></div>Testando...</div>';try{const res=await fetch('/api/test-connections');const d=await res.json();let h='';h+='<div style="margin-bottom:20px;padding:20px;background:'+(d.hinova.status==='success'?'#d4edda':'#f8d7da')+';border-radius:10px;border-left:5px solid '+(d.hinova.status==='success'?'#28a745':'#dc3545')+';">';h+='<h3 style="margin:0 0 10px 0;color:'+(d.hinova.status==='success'?'#155724':'#721c24')+';">'+(d.hinova.status==='success'?'✅':'❌')+' Hinova</h3><p><strong>Status:</strong> '+d.hinova.message+'</p>';if(d.hinova.details&&d.hinova.details.token_cached)h+='<p><strong>Token:</strong> '+d.hinova.details.token_cached+'</p>';h+='</div>';h+='<div style="padding:20px;background:'+(d.uppchannel.status==='success'?'#d4edda':'#f8d7da')+';border-radius:10px;border-left:5px solid '+(d.uppchannel.status==='success'?'#28a745':'#dc3545')+';">';h+='<h3 style="margin:0 0 10px 0;color:'+(d.uppchannel.status==='success'?'#155724':'#721c24')+';">'+(d.uppchannel.status==='success'?'✅':'❌')+' UppChannel</h3><p><strong>Status:</strong> '+d.uppchannel.message+'</p></div>';r.innerHTML=h;}catch(e){r.innerHTML='<div style="color:#e74c3c;text-align:center;padding:40px;">❌ Erro</div>';}}
         updateStatus();updateInterval=setInterval(updateStatus,5000);
     </script>
 </body>
@@ -1257,53 +887,6 @@ def health():
     """Health check"""
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
-@app.route('/api/debug-eventos')
-def debug_eventos():
-    """DEBUG: Mostra estrutura real dos eventos da API Hinova"""
-    try:
-        hinova = HinovaAPI(config['hinova']['token'], config['hinova']['usuario'], config['hinova']['senha'])
-        
-        if not hinova.autenticar():
-            return jsonify({'erro': 'Falha na autenticacao', 'token_cache': str(token_cache)})
-        
-        # Buscar eventos de hoje
-        hoje = datetime.now().strftime('%Y-%m-%d')
-        eventos = hinova.listar_eventos(hoje, hoje)
-        
-        resultado = {
-            'total_eventos': len(eventos),
-            'formato': 'lista' if isinstance(eventos, list) else type(eventos).__name__,
-        }
-        
-        if len(eventos) > 0:
-            primeiro = eventos[0]
-            resultado['primeiro_evento_COMPLETO'] = primeiro
-            resultado['keys_do_evento'] = list(primeiro.keys()) if isinstance(primeiro, dict) else []
-            
-            # Campos de situacao
-            if isinstance(primeiro, dict):
-                resultado['campo_situacao'] = primeiro.get('situacao')
-                resultado['campo_situacao_tipo'] = type(primeiro.get('situacao')).__name__
-                
-                # Buscar qualquer campo com 'sit' no nome
-                resultado['campos_com_sit'] = {k: v for k, v in primeiro.items() if 'sit' in k.lower()}
-                resultado['campos_com_codigo'] = {k: v for k, v in primeiro.items() if 'codigo' in k.lower() or 'cod' in k.lower()}
-                resultado['campos_com_status'] = {k: v for k, v in primeiro.items() if 'status' in k.lower()}
-                
-                # Amostra de 5 eventos
-                resultado['amostra_5_eventos'] = []
-                for evt in eventos[:5]:
-                    amostra = {'protocolo': evt.get('protocolo')}
-                    for k in evt.keys():
-                        if 'sit' in k.lower() or 'status' in k.lower() or 'codigo' in k.lower():
-                            amostra[k] = evt[k]
-                    resultado['amostra_5_eventos'].append(amostra)
-        
-        return jsonify(resultado)
-    except Exception as e:
-        import traceback
-        return jsonify({'erro': str(e), 'traceback': traceback.format_exc()})
-
 @app.route('/api/status')
 def api_status():
     """Status do sistema em JSON"""
@@ -1313,7 +896,7 @@ def api_status():
         'is_running': system_state['is_running'],
         'current_step': system_state['current_step'],
         'stats': system_state['stats'],
-        'logs': system_state['logs'][:50],
+        'logs': system_state['logs'][:50],  # Últimos 50 logs
         'processed_events_count': len(system_state['processed_events'])
     })
 
@@ -1349,7 +932,7 @@ def api_config():
 
 @app.route('/api/test-connections')
 def test_connections():
-    """Testa conectividade com as APIs"""
+    """Testa conectividade com as APIs SEM interferir no token em uso"""
     results = {
         'hinova': {'status': 'pending', 'message': '', 'details': {}},
         'uppchannel': {'status': 'pending', 'message': '', 'details': {}}
@@ -1357,9 +940,11 @@ def test_connections():
     
     config = carregar_configuracao()
     
+    # Testar Hinova SEM fazer nova autenticação se já houver token válido
     try:
         add_log('INFO', '🔍 Testando conexão Hinova...')
         
+        # Verificar se já tem token válido em cache
         if token_cache['user_token'] and token_cache['expires_at']:
             if datetime.now() < token_cache['expires_at']:
                 results['hinova']['status'] = 'success'
@@ -1374,6 +959,7 @@ def test_connections():
                 results['hinova']['message'] = 'Token em cache expirado (será renovado no próximo processamento)'
                 add_log('WARNING', '⚠️ Token em cache expirado')
         else:
+            # Só autentica se não houver token (para não invalidar o token em uso!)
             results['hinova']['status'] = 'info'
             results['hinova']['message'] = 'Nenhum token em cache (aguardando primeiro processamento)'
             add_log('INFO', 'ℹ️ Nenhum token em cache ainda')
@@ -1383,6 +969,7 @@ def test_connections():
         results['hinova']['message'] = str(e)
         add_log('ERROR', f'❌ Erro Hinova: {str(e)}')
     
+    # Testar UppChannel (teste básico)
     try:
         add_log('INFO', '🔍 Testando configuração UppChannel...')
         if config['uppchannel']['api_key']:
@@ -1406,25 +993,20 @@ def test_connections():
 
 # ==================== INICIALIZAÇÃO ====================
 
+# Inicializar scheduler
 scheduler = BackgroundScheduler()
 
 if __name__ == '__main__':
     # Inicializar banco
     init_database()
     
-    add_log('INFO', '🚀 Sistema CORRIGIDO iniciando...')
-    add_log('INFO', '✅ Correções aplicadas:')
-    add_log('INFO', '   1. Rastreamento de mudanças de status')
-    add_log('INFO', '   2. Busca de eventos dos últimos 7 dias')
-    add_log('INFO', '   3. Persistência no banco de dados')
-    add_log('INFO', '   4. Logs detalhados de comparação')
+    add_log('INFO', '🚀 Sistema iniciando...')
     
     # Carregar configuração
     config = carregar_configuracao()
     intervalo = config['intervalo_minutos']
     
     add_log('INFO', f'⏱️ Intervalo configurado: {intervalo} minutos')
-    add_log('INFO', f'📅 Buscando eventos dos últimos {config.get("dias_busca", 7)} dias')
     
     # Agendar tarefa
     scheduler.add_job(
