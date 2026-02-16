@@ -955,9 +955,143 @@ def processar_eventos():
 @app.route('/')
 def index():
     """Dashboard principal"""
-    # Usar o mesmo HTML do original
-    from app import index as original_index
-    return original_index()
+    # HTML inline para evitar problemas de caminho no Render
+    html = '''<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Hinova → UppChannel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #333; }
+        .container { display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; flex-direction: column; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .subtitle { font-size: 12px; opacity: 0.9; margin-bottom: 30px; }
+        .nav-item { padding: 12px 15px; margin: 5px 0; border-radius: 8px; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 10px; }
+        .nav-item:hover { background: rgba(255,255,255,0.2); }
+        .nav-item.active { background: rgba(255,255,255,0.3); }
+        .nav-icon { font-size: 18px; }
+        .main-content { flex: 1; overflow-y: auto; padding: 30px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header h1 { font-size: 32px; color: #333; }
+        .btn { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s; }
+        .btn:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn-success { background: #48bb78; }
+        .btn-success:hover { background: #38a169; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .stat-label { font-size: 14px; color: #666; margin-bottom: 10px; }
+        .stat-value { font-size: 36px; font-weight: bold; color: #667eea; }
+        .log-panel { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); overflow: hidden; }
+        .log-header { background: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+        .log-title { font-size: 18px; font-weight: bold; color: #333; }
+        .log-body { height: 400px; overflow-y: auto; padding: 15px; background: #1a1a1a; font-family: 'Courier New', monospace; font-size: 13px; }
+        .log-entry { padding: 5px 0; border-bottom: 1px solid #333; }
+        .log-timestamp { color: #888; margin-right: 10px; }
+        .log-level { margin-right: 10px; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+        .log-level.INFO { background: #3498db; color: white; }
+        .log-level.SUCCESS { background: #48bb78; color: white; }
+        .log-level.WARNING { background: #f39c12; color: white; }
+        .log-level.ERROR { background: #e74c3c; color: white; }
+        .log-message { color: #0f0; }
+        .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid; }
+        .alert-info { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
+        .alert-success { background: #d4edda; border-color: #28a745; color: #155724; }
+        .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .status-running { background: #48bb78; animation: pulse 2s infinite; }
+        .status-idle { background: #95a5a6; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .loading { text-align: center; padding: 40px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #f8f9fa; }
+        th { padding: 15px; text-align: left; font-weight: bold; color: #333; border-bottom: 2px solid #e0e0e0; }
+        td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; }
+        tr:hover { background: #f8f9fa; }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-error { background: #f8d7da; color: #721c24; }
+        .config-section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .config-title { font-size: 20px; font-weight: bold; color: #667eea; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #667eea; }
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo">🚗 Monitor Hinova</div>
+            <div class="subtitle">Mensagens Automáticas</div>
+            <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></div>
+            <div class="nav-item" onclick="showPage('logs')"><span class="nav-icon">📋</span><span>Logs do Sistema</span></div>
+            <div class="nav-item" onclick="showPage('messages')"><span class="nav-icon">💬</span><span>Histórico</span></div>
+            <div class="nav-item" onclick="showPage('config')"><span class="nav-icon">⚙️</span><span>Configurações</span></div>
+            <div class="nav-item" onclick="showPage('test')"><span class="nav-icon">🔬</span><span>Testar Conexões</span></div>
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <div style="font-size: 12px; opacity: 0.8;">Status: <span id="systemStatus">...</span></div>
+                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">Atualização: <span id="lastUpdate">-</span></div>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="page active" id="dashboard-page">
+                <div class="header"><h1>Dashboard</h1><button class="btn btn-success" onclick="runNow()">▶️ Executar</button></div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Execuções</div><div class="stat-value" id="totalRuns">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Enviadas</div><div class="stat-value" id="successMessages">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Falhas</div><div class="stat-value" id="failedMessages" style="color: #e74c3c;">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Processados</div><div class="stat-value" id="processedEvents">0</div></div>
+                </div>
+                <div class="log-panel">
+                    <div class="log-header"><div class="log-title"><span class="status-indicator" id="statusIndicator"></span><span id="currentStep">Sistema aguardando...</span></div><button class="btn" onclick="updateStatus()" style="padding: 8px 16px; font-size: 12px;">🔄</button></div>
+                    <div class="log-body" id="logContainer"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+                </div>
+            </div>
+            <div class="page" id="test-page">
+                <div class="header"><h1>Testar Conexões</h1><button class="btn btn-success" onclick="testConnections()">🔬 Testar</button></div>
+                <div class="alert alert-info"><strong>💡</strong> Verifique se as APIs estão respondendo.</div>
+                <div class="config-section"><div class="config-title">Status</div><div id="testResults"><p style="text-align:center;color:#888;">Clique em Testar</p></div></div>
+                <div class="alert alert-success"><strong>✅</strong> "Nenhum evento" significa que está OK!</div>
+            </div>
+            <div class="page" id="logs-page">
+                <div class="header"><h1>Logs</h1><button class="btn" onclick="updateStatus()">🔄</button></div>
+                <div class="log-panel"><div class="log-header"><div class="log-title">Histórico</div></div><div class="log-body" id="fullLogContainer" style="height:600px;"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
+            </div>
+            <div class="page" id="messages-page">
+                <div class="header"><h1>Mensagens</h1><button class="btn" onclick="refreshMessages()">🔄</button></div>
+                <div class="table-container"><table><thead><tr><th>Data</th><th>Protocolo</th><th>Situação</th><th>Cliente</th><th>Status</th></tr></thead><tbody id="messagesTableBody"><tr><td colspan="5" style="text-align:center;padding:40px;"><div class="spinner"></div>Carregando...</td></tr></tbody></table></div>
+            </div>
+            <div class="page" id="config-page">
+                <div class="header"><h1>Configurações</h1><button class="btn btn-success" onclick="saveConfig()">💾 Salvar</button></div>
+                <div class="alert alert-info"><strong>💡</strong> Reinicie após alterar credenciais.</div>
+                <div class="config-section"><div class="config-title">🔐 Credenciais</div><div class="form-group"><label>Token Hinova:</label><input type="text" id="configHinovaToken"></div><div class="form-group"><label>Usuário:</label><input type="text" id="configHinovaUser"></div><div class="form-group"><label>Senha:</label><input type="password" id="configHinovaPass"></div><div class="form-group"><label>API Key UppChannel:</label><input type="text" id="configUppKey"></div></div>
+                <div class="config-section"><div class="config-title">⚙️ Sistema</div><div class="form-group"><label>Intervalo (min):</label><input type="number" id="configInterval" value="15"></div><div class="form-group"><label>Situações:</label><input type="text" id="configSituacoes"></div></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let updateInterval;
+        function showPage(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));document.getElementById(p+'-page').classList.add('active');event.target.closest('.nav-item').classList.add('active');if(p==='messages')refreshMessages();else if(p==='logs')refreshFullLogs();else if(p==='config')loadConfig();}
+        async function updateStatus(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('totalRuns').textContent=d.stats.total_runs;document.getElementById('successMessages').textContent=d.stats.successful_messages;document.getElementById('failedMessages').textContent=d.stats.failed_messages;document.getElementById('processedEvents').textContent=d.processed_events_count;const si=document.getElementById('statusIndicator');const cs=document.getElementById('currentStep');const ss=document.getElementById('systemStatus');if(d.is_running){si.className='status-indicator status-running';cs.textContent=d.current_step||'Processando...';ss.textContent='Rodando';}else{si.className='status-indicator status-idle';cs.textContent=d.last_status||'Ocioso';ss.textContent='Ocioso';}updateLogs(d.logs);document.getElementById('lastUpdate').textContent=new Date().toLocaleTimeString('pt-BR');}catch(e){console.error(e);}}
+        function updateLogs(logs){const c=document.getElementById('logContainer');c.innerHTML='';if(!logs||logs.length===0){c.innerHTML='<div style="color:#888;text-align:center;padding:20px;">Nenhum log</div>';return;}logs.forEach(l=>{const e=document.createElement('div');e.className='log-entry';e.innerHTML=`<span class="log-timestamp">${l.timestamp}</span><span class="log-level ${l.level}">${l.level}</span><span class="log-message">${l.message}</span>`;c.appendChild(e);});}
+        async function refreshFullLogs(){const c=document.getElementById('fullLogContainer');c.innerHTML='<div class="loading"><div class="spinner"></div>Carregando...</div>';try{const r=await fetch('/api/logs');const logs=await r.json();c.innerHTML='';logs.forEach(l=>{const e=document.createElement('div');e.className='log-entry';e.innerHTML=`<span class="log-timestamp">${l.timestamp}</span><span class="log-level ${l.level}">${l.level}</span><span class="log-message">${l.message}</span>`;c.appendChild(e);});}catch(e){c.innerHTML='<div style="color:#e74c3c;text-align:center;padding:20px;">Erro</div>';}}
+        async function refreshMessages(){const t=document.getElementById('messagesTableBody');t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;"><div class="spinner"></div>Carregando...</td></tr>';try{const r=await fetch('/api/messages');const m=await r.json();t.innerHTML='';if(m.length===0){t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#888;">Nenhuma mensagem</td></tr>';return;}m.forEach(msg=>{const row=document.createElement('tr');row.innerHTML=`<td>${msg.timestamp}</td><td>${msg.protocolo}</td><td>${msg.situacao}</td><td>${msg.cliente}</td><td><span class="badge ${msg.status==='success'?'badge-success':'badge-error'}">${msg.status}</span></td>`;t.appendChild(row);});}catch(e){t.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#e74c3c;">Erro</td></tr>';}}
+        async function loadConfig(){try{const r=await fetch('/api/config');const c=await r.json();document.getElementById('configHinovaToken').value=c.hinova.token||'';document.getElementById('configHinovaUser').value=c.hinova.usuario||'';document.getElementById('configHinovaPass').value=c.hinova.senha||'';document.getElementById('configUppKey').value=c.uppchannel.api_key||'';document.getElementById('configInterval').value=c.intervalo_minutos||15;document.getElementById('configSituacoes').value=c.situacoes_ativas.join(',');}catch(e){console.error(e);}}
+        async function saveConfig(){const c={hinova:{token:document.getElementById('configHinovaToken').value,usuario:document.getElementById('configHinovaUser').value,senha:document.getElementById('configHinovaPass').value},uppchannel:{api_key:document.getElementById('configUppKey').value},intervalo_minutos:parseInt(document.getElementById('configInterval').value),situacoes_ativas:document.getElementById('configSituacoes').value.split(',').map(x=>parseInt(x.trim()))};try{const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});if(r.ok)alert('✅ Salvo!');else alert('❌ Erro');}catch(e){alert('❌ Erro: '+e.message);}}
+        async function runNow(){if(confirm('Executar agora?')){try{await fetch('/api/run-now');alert('✓ Iniciado! Veja os logs.');}catch(e){alert('Erro');}}}
+        async function testConnections(){const r=document.getElementById('testResults');r.innerHTML='<div class="loading"><div class="spinner"></div>Testando...</div>';try{const res=await fetch('/api/test-connections');const d=await res.json();let h='';h+='<div style="margin-bottom:20px;padding:20px;background:'+(d.hinova.status==='success'?'#d4edda':'#f8d7da')+';border-radius:10px;border-left:5px solid '+(d.hinova.status==='success'?'#28a745':'#dc3545')+';">'; h+='<h3 style="margin:0 0 10px 0;color:'+(d.hinova.status==='success'?'#155724':'#721c24')+';">'+( d.hinova.status==='success'?'✅':'❌')+' Hinova</h3><p><strong>Status:</strong> '+d.hinova.message+'</p>';if(d.hinova.details&&d.hinova.details.token_cached)h+='<p><strong>Token:</strong> '+d.hinova.details.token_cached+'</p>';h+='</div>';h+='<div style="padding:20px;background:'+(d.uppchannel.status==='success'?'#d4edda':'#f8d7da')+';border-radius:10px;border-left:5px solid '+(d.uppchannel.status==='success'?'#28a745':'#dc3545')+';">'; h+='<h3 style="margin:0 0 10px 0;color:'+(d.uppchannel.status==='success'?'#155724':'#721c24')+';">'+( d.uppchannel.status==='success'?'✅':'❌')+' UppChannel</h3><p><strong>Status:</strong> '+d.uppchannel.message+'</p></div>';r.innerHTML=h;}catch(e){r.innerHTML='<div style="color:#e74c3c;text-align:center;padding:40px;">❌ Erro</div>';}}
+        updateStatus();updateInterval=setInterval(updateStatus,5000);
+    </script>
+</body>
+</html>'''
+    return html
 
 @app.route('/health')
 def health():
