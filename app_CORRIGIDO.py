@@ -497,7 +497,18 @@ class HinovaAPI:
             if response.status_code == 200:
                 add_log('SUCCESS', '✓ FUNCIONOU com apenas user_token!')
                 data = response.json()
-                eventos = data.get('eventos', [])
+                
+                # A API pode retornar lista direta ou objeto com 'eventos'
+                if isinstance(data, list):
+                    eventos = data
+                    add_log('INFO', f'   Formato: Lista direta')
+                elif isinstance(data, dict):
+                    eventos = data.get('eventos', [])
+                    add_log('INFO', f'   Formato: Objeto com chave "eventos"')
+                else:
+                    add_log('ERROR', f'   Formato inesperado: {type(data)}')
+                    eventos = []
+                
                 add_log('INFO', f'✓ {len(eventos)} eventos encontrados no período')
                 return eventos
             
@@ -515,7 +526,18 @@ class HinovaAPI:
             if response.status_code == 200:
                 add_log('SUCCESS', '✓ FUNCIONOU com Bearer + token separado!')
                 data = response.json()
-                eventos = data.get('eventos', [])
+                
+                # A API pode retornar lista direta ou objeto com 'eventos'
+                if isinstance(data, list):
+                    eventos = data
+                    add_log('INFO', f'   Formato: Lista direta')
+                elif isinstance(data, dict):
+                    eventos = data.get('eventos', [])
+                    add_log('INFO', f'   Formato: Objeto com chave "eventos"')
+                else:
+                    add_log('ERROR', f'   Formato inesperado: {type(data)}')
+                    eventos = []
+                
                 add_log('INFO', f'✓ {len(eventos)} eventos encontrados no período')
                 return eventos
             
@@ -533,7 +555,18 @@ class HinovaAPI:
             if response.status_code == 200:
                 add_log('SUCCESS', '✓ FUNCIONOU com token_usuario!')
                 data = response.json()
-                eventos = data.get('eventos', [])
+                
+                # A API pode retornar lista direta ou objeto com 'eventos'
+                if isinstance(data, list):
+                    eventos = data
+                    add_log('INFO', f'   Formato: Lista direta')
+                elif isinstance(data, dict):
+                    eventos = data.get('eventos', [])
+                    add_log('INFO', f'   Formato: Objeto com chave "eventos"')
+                else:
+                    add_log('ERROR', f'   Formato inesperado: {type(data)}')
+                    eventos = []
+                
                 add_log('INFO', f'✓ {len(eventos)} eventos encontrados no período')
                 return eventos
             
@@ -551,7 +584,15 @@ class HinovaAPI:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    eventos = data.get('eventos', [])
+                    
+                    # A API pode retornar lista direta ou objeto com 'eventos'
+                    if isinstance(data, list):
+                        eventos = data
+                    elif isinstance(data, dict):
+                        eventos = data.get('eventos', [])
+                    else:
+                        eventos = []
+                    
                     add_log('SUCCESS', f'✓ {len(eventos)} eventos encontrados após reautenticação')
                     return eventos
             
