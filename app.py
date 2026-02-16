@@ -1098,6 +1098,53 @@ def health():
     """Health check"""
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/api/debug-eventos')
+def debug_eventos():
+    """DEBUG: Mostra estrutura real dos eventos da API Hinova"""
+    try:
+        hinova = HinovaAPI(config['hinova']['token'], config['hinova']['usuario'], config['hinova']['senha'])
+        
+        if not hinova.autenticar():
+            return jsonify({'erro': 'Falha na autenticacao', 'token_cache': str(token_cache)})
+        
+        # Buscar eventos de hoje
+        hoje = datetime.now().strftime('%Y-%m-%d')
+        eventos = hinova.listar_eventos(hoje, hoje)
+        
+        resultado = {
+            'total_eventos': len(eventos),
+            'formato': 'lista' if isinstance(eventos, list) else type(eventos).__name__,
+        }
+        
+        if len(eventos) > 0:
+            primeiro = eventos[0]
+            resultado['primeiro_evento_COMPLETO'] = primeiro
+            resultado['keys_do_evento'] = list(primeiro.keys()) if isinstance(primeiro, dict) else []
+            
+            # Campos de situacao
+            if isinstance(primeiro, dict):
+                resultado['campo_situacao'] = primeiro.get('situacao')
+                resultado['campo_situacao_tipo'] = type(primeiro.get('situacao')).__name__
+                
+                # Buscar qualquer campo com 'sit' no nome
+                resultado['campos_com_sit'] = {k: v for k, v in primeiro.items() if 'sit' in k.lower()}
+                resultado['campos_com_codigo'] = {k: v for k, v in primeiro.items() if 'codigo' in k.lower() or 'cod' in k.lower()}
+                resultado['campos_com_status'] = {k: v for k, v in primeiro.items() if 'status' in k.lower()}
+                
+                # Amostra de 5 eventos
+                resultado['amostra_5_eventos'] = []
+                for evt in eventos[:5]:
+                    amostra = {'protocolo': evt.get('protocolo')}
+                    for k in evt.keys():
+                        if 'sit' in k.lower() or 'status' in k.lower() or 'codigo' in k.lower():
+                            amostra[k] = evt[k]
+                    resultado['amostra_5_eventos'].append(amostra)
+        
+        return jsonify(resultado)
+    except Exception as e:
+        import traceback
+        return jsonify({'erro': str(e), 'traceback': traceback.format_exc()})
+
 @app.route('/api/status')
 def api_status():
     """Status do sistema em JSON"""
